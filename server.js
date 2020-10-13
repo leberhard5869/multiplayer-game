@@ -59,19 +59,25 @@ const server = http.listen(portNum, () => {
 // Set up socket
 var userArr = [];
 var collect = null;
-var foundIndex;
 
 // On new user connection, emit new count and user array to all users
 io.on('connection', (socket) => {
   console.log('A user has connected');
-  socket.on('error', (error) => {
-    console.log(error);
+  //console.log(userArr, collect);
+
+  socket.on('client error', (data) => {    
+    var errorOnce;
+    if (errorOnce != data) {
+      errorOnce = data;
+      console.log("Client error: \n", errorOnce);
+    };
   });
   
-  // On receiving updated player info object from a user, update user array
+  // On receiving updated player info object from a user, update user array and emit
   socket.on('player update', (data) => {
+    var foundIndex;
     foundIndex = userArr.findIndex(elm => elm.id == data.player.id);
-    if (foundIndex == -1) { 
+    if (foundIndex == -1) {
       userArr.push(data.player);
     } else {
       userArr[foundIndex].x = data.player.x;
@@ -79,11 +85,7 @@ io.on('connection', (socket) => {
       userArr[foundIndex].score = data.player.score;
     };
     if (collect == null || collect.x != data.collect.x || collect.y != data.collect.y) { collect = data.collect };
-    console.log(userArr, collect);
-  });
-
-  // Emit updated user array every 0.1 seconds
-  var updateEmit = setInterval(() => {
+    
     userArr.forEach((elm) => {
       elm.deltax = elm.x - elm.oldx;
       elm.deltay = elm.y - elm.oldy;
@@ -92,19 +94,21 @@ io.on('connection', (socket) => {
       userArr,
       collect
     });
+    console.log(userArr, collect);
+    
     userArr.forEach((elm) => {
       elm.oldx = elm.x;
       elm.oldy = elm.y;
     });
-  }, 100);
+  });
 
   // On user disconnect, emit new count to all users
   socket.on('disconnect', () => {
+    var foundIndex;
     console.log('A user has disconnected');
     foundIndex = userArr.findIndex(x => x.id == socket.id);
     userArr.splice(foundIndex, 1);
-    console.log(userArr, collect);
-    if (userArr.length == 0) clearInterval(updateEmit);
+    //console.log(userArr, collect);
   });
 
 });
